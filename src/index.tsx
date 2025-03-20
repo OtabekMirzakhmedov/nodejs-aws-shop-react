@@ -7,6 +7,26 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { theme } from "~/theme";
+import axios from "axios";
+
+const setupAxiosInterceptors = () => {
+  axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response) {
+          if (error.response.status === 401) {
+            alert("Unauthorized: Authentication required. Please log in.");
+          }
+
+          if (error.response.status === 403) {
+            alert("Forbidden: You don't have permission to access this resource. Please check your credentials.");
+          }
+        }
+
+        return Promise.reject(error);
+      }
+  );
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,10 +35,10 @@ const queryClient = new QueryClient({
 });
 
 (async () => {
-  // if (import.meta.env.DEV) {
+  setupAxiosInterceptors();
+
   const { worker } = await import("./mocks/browser");
   await worker.start({ onUnhandledRequest: "bypass" });
-  //}
   const container = document.getElementById("app");
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const root = createRoot(container!);

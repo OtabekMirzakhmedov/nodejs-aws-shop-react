@@ -14,8 +14,7 @@ export default function CSVFileImport({ url, title }: CSVFileImportProps) {
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      setFile(file);
+      setFile(files[0]);
     }
   };
 
@@ -25,11 +24,21 @@ export default function CSVFileImport({ url, title }: CSVFileImportProps) {
 
   const uploadFile = async () => {
     if (!file) return;
-    console.log("uploadFile to", url);
+    console.log("Uploading file to", url);
     try {
+      const authorizationToken = localStorage.getItem("authorization_token");
+
+      const headers: Record<string, string> = {};
+
+      if (authorizationToken) {
+        headers.Authorization = `Basic ${authorizationToken}`;
+      }
+
       const response = await axios.get(url, {
         params: { name: file.name },
+        headers: headers
       });
+
       const signedUrl = response.data;
       const result = await fetch(signedUrl, {
         method: "PUT",
@@ -38,6 +47,7 @@ export default function CSVFileImport({ url, title }: CSVFileImportProps) {
         },
         body: file,
       });
+
       if (result.ok) {
         alert("File uploaded successfully.");
       } else {
@@ -46,22 +56,34 @@ export default function CSVFileImport({ url, title }: CSVFileImportProps) {
       removeFile();
     } catch (error) {
       console.error("Error uploading file: ", error);
-      alert("Error uploading file.");
+
+      if (axios.isAxiosError(error) && error.response) {
+        if (error.response.status === 401) {
+          alert("Unauthorized: Authentication required. Please set an authorization token in localStorage.");
+        } else if (error.response.status === 403) {
+          alert("Forbidden: You don't have permission to access this resource. Please check your credentials.");
+        } else {
+          alert(`Error uploading file: ${error.response.status} ${error.response.statusText}`);
+        }
+      } else {
+        alert("Error uploading file.");
+      }
     }
   };
+
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        {title}
-      </Typography>
-      {!file ? (
-        <input type="file" onChange={onFileChange} />
-      ) : (
-        <div>
-          <button onClick={removeFile}>Remove file</button>
-          <button onClick={uploadFile}>Upload file</button>
-        </div>
-      )}
-    </Box>
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          {title}
+        </Typography>
+        {!file ? (
+            <input type="file" onChange={onFileChange} />
+        ) : (
+            <div>
+              <button onClick={removeFile}>Remove file</button>
+              <button onClick={uploadFile}>Upload file</button>
+            </div>
+        )}
+      </Box>
   );
 }
